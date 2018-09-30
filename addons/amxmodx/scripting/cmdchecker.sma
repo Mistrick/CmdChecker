@@ -1,7 +1,7 @@
 #include <amxmodx>
 
 #define PLUGIN "Advanced Client Checker"
-#define VERSION "0.3.4f"
+#define VERSION "0.3.5"
 #define AUTHOR "Mistrick"
 
 #pragma semicolon 1
@@ -89,6 +89,7 @@ new const FILE_BAD_CMD_CFG[] = "bad_cmds.cfg";
 new const FILE_PUNISH_CFG[] = "punish.cfg";
 new const FILE_SLOWHACK_ANSWER_CFG[] = "slowhackanswer.cfg";
 
+new player_ip[33][16];
 new player_authid[33][32];
 new bool:is_player_steam[33];
 
@@ -353,6 +354,7 @@ public client_putinserver(id)
 	}
 	
 	get_user_authid(id, player_authid[id], charsmax(player_authid[]));
+	get_user_ip(id, player_ip[id], charsmax(player_ip[]), 1);
 }
 public client_disconnect(id)
 {
@@ -451,15 +453,15 @@ public client_command(id)
 			// punishment(id, PUNISH_BAD_CMD);
 			
 			if(!result && cmd_len > bad_cmd_len && bad_cmd_info[_BadCmdFlags] & BADCMD_PREFIX) {
-				log_amx("[ACC] found prefix bad cmd: ^"%s^", pattern: ^"%s^". STEAM: %s", cmd, bad_cmd_info[_BadCmd], player_authid[id]);
+				log_player(id, "found prefix bad cmd: ^"%s^", pattern: ^"%s^"", cmd, bad_cmd_info[_BadCmd]);
 				punishment(id, PUNISH_BAD_CMD);
 				return PLUGIN_HANDLED;
 			} else if(cmd_len - result == bad_cmd_len && cmd_len > bad_cmd_len  && bad_cmd_info[_BadCmdFlags] & BADCMD_SUFFIX) {
-				log_amx("[ACC] found suffix bad cmd: ^"%s^", pattern: ^"%s^". STEAM: %s", cmd, bad_cmd_info[_BadCmd], player_authid[id]);
+				log_player(id, "found suffix bad cmd: ^"%s^", pattern: ^"%s^"", cmd, bad_cmd_info[_BadCmd]);
 				punishment(id, PUNISH_BAD_CMD);
 				return PLUGIN_HANDLED;
 			} else if(bad_cmd_info[_BadCmdFlags] & BADCMD_ANY) {
-				log_amx("[ACC] found bad cmd: ^"%s^", pattern: ^"%s^". STEAM: %s", cmd, bad_cmd_info[_BadCmd], player_authid[id]);
+				log_player(id, "found bad cmd: ^"%s^", pattern: ^"%s^"", cmd, bad_cmd_info[_BadCmd]);
 				punishment(id, PUNISH_BAD_CMD);
 				return PLUGIN_HANDLED;
 			}
@@ -526,20 +528,20 @@ public cvar_callback(id, cvar[], value[], params[])
 		new eq = equal(value, "Bad CVAR request");
 		if(!eq && flags & CVAR_EXIST) {
 			// punish for exist cvar
-			log_amx("[ACC] found bad cvar: %s. STEAM: %s", cvar, player_authid[id]);
+			log_player(id, "found bad cvar: ^"%s^"", cvar);
 			punishment(id, PUNISH_WRONG_CVAR);
 			return PLUGIN_HANDLED;
 		}
 		if(eq && flags & CVAR_NOT_EXIST) {
 			// punish for not exist cvar
-			log_amx("[ACC] where is your cvar: %s. STEAM: %s", cvar, player_authid[id]);
+			log_player(id, "where is your cvar: ^"%s^"", cvar);
 			punishment(id, PUNISH_WRONG_CVAR);
 			return PLUGIN_HANDLED;
 		}
 	}
 
 	if(current_cvar_state[id] >= ArraySize(g_aCvarList)) {
-		log_amx("[ACC] Undefined behavior. Cvar: %s, value: %s, flags: %d", cvar, value, flags);
+		log_amx("[ACC] Undefined behavior. Cvar: ^"%s^", value: ^"%s^", flags: %d", cvar, value, flags);
 		return PLUGIN_HANDLED;
 	}
 
@@ -547,24 +549,24 @@ public cvar_callback(id, cvar[], value[], params[])
 	
 	if(flags & (CVAR_EQUAL|CVAR_NOT_EQUAL)) {
 		if((equali(value, cvar_info[_CvarValue]) || str_to_float(value) == str_to_float(cvar_info[_CvarValue])) && flags & CVAR_EQUAL) {
-			log_amx("[ACC] found equal cvar value: %s %s == %s. STEAM: %s", cvar, value, cvar_info[_CvarValue], player_authid[id]);
+			log_player(id, "found equal cvar value: ^"%s^" %s == %s", cvar, value, cvar_info[_CvarValue]);
 			punishment(id, PUNISH_WRONG_CVAR);
 			return PLUGIN_HANDLED;
 		} else if(flags & CVAR_NOT_EQUAL) {
-			log_amx("[ACC] found not equal cvar value: %s %s != %s. STEAM: %s", cvar, value, cvar_info[_CvarValue], player_authid[id]);
+			log_player(id, "found not equal cvar value: ^"%s^" %s != %s", cvar, value, cvar_info[_CvarValue]);
 			punishment(id, PUNISH_WRONG_CVAR);
 			return PLUGIN_HANDLED;
 		}
 	}
 	
 	if(flags & CVAR_ABOVE && str_to_float(value) > cvar_info[_CvarValueAbove]) {
-		log_amx("[ACC] found cvar value: %s %s > %.1f. STEAM: %s", cvar, value, cvar_info[_CvarValueAbove], player_authid[id]);
+		log_player(id, "found cvar value: ^"%s^" %s > %.1f", cvar, value, cvar_info[_CvarValueAbove]);
 		punishment(id, PUNISH_WRONG_CVAR);
 		return PLUGIN_HANDLED;
 	}
 	
 	if(flags & CVAR_BELOW && str_to_float(value) < cvar_info[_CvarValueBelow]) {
-		log_amx("[ACC] found cvar value: %s %s < %.1f. STEAM: %s", cvar, value, cvar_info[_CvarValueBelow], player_authid[id]);
+		log_player(id, "found cvar value: ^"%s^" %s < %.1f", cvar, value, cvar_info[_CvarValueBelow]);
 		punishment(id, PUNISH_WRONG_CVAR);
 		return PLUGIN_HANDLED;
 	}
@@ -582,10 +584,9 @@ public cvar_callback(id, cvar[], value[], params[])
 add_new_cmd(id, cmd[])
 {
 	TrieSetCell(g_tCmdLog, cmd, 1);
-	new ip[32]; get_user_ip(id, ip, charsmax(ip), 1); // TODO: cache this
-	new name[32]; get_user_name(id, name, charsmax(name));
-	new text[256];
-	formatex(text, charsmax(text), "// cmd: ^"%s^", player: %s, steamid: %s, ip: %s^nacc_add_cmd_log ^"%s^"", cmd, name, player_authid[id], ip, cmd);
+	new name[32], text[256];
+	get_user_name(id, name, charsmax(name));
+	formatex(text, charsmax(text), "// cmd: ^"%s^", player: %s, steamid: %s, ip: %s^nacc_add_cmd_log ^"%s^"", cmd, name, player_authid[id], player_ip[id], cmd);
 	write_file(g_szCmdLogPath, text);
 }
 #endif // COMMAND_LOGGER
@@ -598,7 +599,7 @@ punishment(id, PunishType:type)
 	switch(type) {
 		case PUNISH_BAD_CLIENT: {
 			// bad client, protector
-			log_amx("[ACC] found bad client or protector. STEAMID: %s", player_authid[id]);
+			log_player(id, "found bad client or protector");
 			
 			#if defined KICK_BAD_CLIENT
 			server_cmd("kick #%d Bad Client", get_user_userid(id));
@@ -608,7 +609,7 @@ punishment(id, PunishType:type)
 		}
 		case PUNISH_BLOCK_CVAR_ANSWER: {
 			new cvar_info[CvarStruct]; ArrayGetArray(g_aCvarList, current_cvar_state[id], cvar_info);
-			log_amx("[ACC] cvar without answer: %s. STEAM: %s", cvar_info[_Cvar], player_authid[id]);
+			log_player(id, "cvar without answer: %s", cvar_info[_Cvar]);
 		
 			#if defined KICK_FOR_BLOCK_CVAR_ANSWER
 			server_cmd("kick #%d Block Cvar", get_user_userid(id));
@@ -617,7 +618,7 @@ punishment(id, PunishType:type)
 			return;
 		}
 		case PUNISH_WRONG_CMD: {
-			log_amx("[ACC] found wrong cmd. STEAMID: %s, cmd: ^"%s^".", player_authid[id], current_cmd[id]);
+			log_player(id, "found wrong cmd: ^"%s^"", current_cmd[id]);
 			
 			new cmd_info[CommandStruct]; ArrayGetArray(g_aCmdList, current_cmd_state[id], cmd_info);
 			punish_index = get_punish_index(cmd_info[_CmdPunishLevel]);
@@ -661,6 +662,14 @@ punishment(id, PunishType:type)
 	
 	server_cmd("%s", punish_info[_PunishCmd]);
 }
+
+log_player(id, message[], any:...)
+{
+	new buffer[256]; vformat(buffer, charsmax(buffer), message, 3);
+	new name[32]; get_user_name(id, name, charsmax(name));
+	log_amx("[ACC] %s. Player: ^"%s^"<%s><%s>", buffer, name, player_authid[id], player_ip[id]);
+}
+
 generate_string(str[], len)
 {
 	for(new i; i < len; i++) {
