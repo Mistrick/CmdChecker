@@ -1,7 +1,7 @@
 #include <amxmodx>
 
 #define PLUGIN "Advanced Client Checker"
-#define VERSION "0.3.4"
+#define VERSION "0.3.4f"
 #define AUTHOR "Mistrick"
 
 #pragma semicolon 1
@@ -13,7 +13,7 @@
 // #define COMMAND_LOGGER // функция логирования написанных в консоль команд игроком
 
 #define INPUT_DELAY 3.0 // задержка проверки после коннекта
-#define RECHECK_DELAY 180.0 // через сколько начать повторную проверку
+#define RECHECK_DELAY 300.0 // через сколько начать повторную проверку
 #define MAX_CMDS_FOR_LOOP 1000 // сколько команд проверять за цикл
 #define LOOP_DELAY 5.0 // задержка между циклами
 #define FIRST_ANSWER_MAX_TIME 5.0 // время на ответ от команды подтверждения
@@ -25,16 +25,14 @@
 
 ///**************************///
 
-enum ( +=100 )
-{
+enum ( +=100 ) {
 	TASK_FIRST_CMD = 100,
 	TASK_CMD_CHECK,
 	TASK_CVAR_ANSWER,
 	TASK_CVAR_CHECK
 };
 
-enum CvarFlags( <<= 1 )
-{
+enum CvarFlags( <<= 1 ) {
 	CVAR_EXIST = 1,
 	CVAR_NOT_EXIST,
 	CVAR_EQUAL,
@@ -43,8 +41,7 @@ enum CvarFlags( <<= 1 )
 	CVAR_BELOW
 }
 
-enum PunishType
-{
+enum PunishType {
 	PUNISH_BAD_CLIENT,
 	PUNISH_BLOCK_CVAR_ANSWER,
 	PUNISH_WRONG_CMD,
@@ -52,14 +49,12 @@ enum PunishType
 	PUNISH_BAD_CMD
 };
 
-enum _:CommandStruct
-{
+enum _:CommandStruct {
 	_CmdPunishLevel,
 	_Cmd[64]
 };
 
-enum _:CvarStruct
-{
+enum _:CvarStruct {
 	_CvarPunishLevel,
 	CvarFlags:_CvarFlags,
 	_Cvar[64],
@@ -68,27 +63,25 @@ enum _:CvarStruct
 	Float:_CvarValueBelow
 };
 
-enum BadCmdFlags ( <<= 1 )
-{
+enum BadCmdFlags ( <<= 1 ) {
 	BADCMD_ANY = 1,
 	BADCMD_PREFIX,
 	BADCMD_SUFFIX
 };
 
-enum _:BadCmdStruct
-{
+enum _:BadCmdStruct {
 	_BadCmdPunishLevel,
 	BadCmdFlags:_BadCmdFlags,
 	_BadCmd[64]
 };
 
-enum _:PunishStruct
-{
+enum _:PunishStruct {
 	_PunishLevel,
 	_PunishCmd[128]
 };
 
 #define CMD_LEN 16
+#define INVALID_INDEX -1
 
 new const FILE_CMD_CFG[] = "cmds.cfg";
 new const FILE_CVAR_CFG[] = "cvars.cfg";
@@ -178,13 +171,11 @@ public plugin_end()
 }
 public command_add_cmd(id, level, cid)
 {
-	if(~get_user_flags(id) & level)
-	{
+	if(~get_user_flags(id) & level) {
 		return PLUGIN_HANDLED;
 	}
 	
-	if(read_argc() != 3)
-	{
+	if(read_argc() != 3) {
 		return PLUGIN_HANDLED;
 	}
 	
@@ -201,15 +192,13 @@ public command_add_cmd(id, level, cid)
 }
 public command_add_cvar(id, level, cid)
 {
-	if(~get_user_flags(id) & level)
-	{
+	if(~get_user_flags(id) & level) {
 		return PLUGIN_HANDLED;
 	}
 	
 	new args_num = read_argc() - 1;
 	
-	if(args_num < 3)
-	{
+	if(args_num < 3) {
 		return PLUGIN_HANDLED;
 	}
 	
@@ -227,48 +216,33 @@ public command_add_cvar(id, level, cid)
 	
 	read_argv(3, args, charsmax(args));
 	
-	if(args_num == 3)
-	{
-		if(equal(args, "exist"))
-		{
+	if(args_num == 3) {
+		if(equal(args, "exist")) {
 			cvar_info[_CvarFlags] |= CVAR_EXIST;
-		}
-		else if(equal(args, "!exist"))
-		{
+		} else if(equal(args, "!exist")) {
 			cvar_info[_CvarFlags] |= CVAR_NOT_EXIST;
 		}
-	}
-	else if(args_num == 4)
-	{
-		if(equal(args, "equal") || equal(args, "==") || equal(args, ">=") || equal(args, "<="))
-		{
+	} else if(args_num == 4) {
+		if(equal(args, "equal") || equal(args, "==") || equal(args, ">=") || equal(args, "<=")) {
 			cvar_info[_CvarFlags] |= CVAR_EQUAL;
 			read_argv(4, cvar_info[_CvarValue], charsmax(cvar_info[_CvarValue]));
-		}
-		else if(equal(args, "!equal") || equal(args, "!="))
-		{
+		} else if(equal(args, "!equal") || equal(args, "!=")) {
 			cvar_info[_CvarFlags] |= CVAR_NOT_EQUAL;
 			read_argv(4, cvar_info[_CvarValue], charsmax(cvar_info[_CvarValue]));
 		}
 		
-		if(equal(args, ">") || equal(args, ">="))
-		{
+		if(equal(args, ">") || equal(args, ">=")) {
 			cvar_info[_CvarFlags] |= CVAR_ABOVE;
 			read_argv(4, args, charsmax(args));
 			cvar_info[_CvarValueAbove] = _:str_to_float(args);
-		}
-		else if(equal(args, "<") || equal(args, "<="))
-		{
+		} else if(equal(args, "<") || equal(args, "<=")) {
 			cvar_info[_CvarFlags] |= CVAR_BELOW;
 			read_argv(4, args, charsmax(args));
 			cvar_info[_CvarValueBelow] = _:str_to_float(args);
 		}
 	}
 	
-	// server_print("cvar: %s, flags: %d, args: %d", cvar_info[_Cvar], cvar_info[_CvarFlags], args_num);
-	
-	if(cvar_info[_CvarFlags])
-	{
+	if(cvar_info[_CvarFlags]) {
 		ArrayPushArray(g_aCvarList, cvar_info);
 		g_iCvarListSize++;
 	}
@@ -278,13 +252,11 @@ public command_add_cvar(id, level, cid)
 
 public command_add_bad_cmd(id, level, cid)
 {
-	if(~get_user_flags(id) & level)
-	{
+	if(~get_user_flags(id) & level) {
 		return PLUGIN_HANDLED;
 	}
 	
-	if(read_argc() < 4)
-	{
+	if(read_argc() < 3) {
 		return PLUGIN_HANDLED;
 	}
 	
@@ -295,30 +267,21 @@ public command_add_bad_cmd(id, level, cid)
 	new command[64], len;
 	len = read_argv(2, command, charsmax(command));
 	
-	if(command[0] == '*' && command[len - 1] == '*')
-	{
+	if(command[0] == '*' && command[len - 1] == '*') {
 		bad_cmd_info[_BadCmdFlags] = _:BADCMD_ANY;
 		command[len - 1] = 0;
 		copy(bad_cmd_info[_BadCmd], charsmax(bad_cmd_info[_BadCmd]), command[1]);
-	}
-	else if(command[0] != '*' && command[len - 1] != '*')
-	{
+	} else if(command[0] != '*' && command[len - 1] != '*') {
 		bad_cmd_info[_BadCmdFlags] = _:BADCMD_ANY;
 		copy(bad_cmd_info[_BadCmd], charsmax(bad_cmd_info[_BadCmd]), command);
-	}
-	else if(command[0] == '*')
-	{
+	} else if(command[0] == '*') {
 		bad_cmd_info[_BadCmdFlags] = _:BADCMD_SUFFIX;
 		copy(bad_cmd_info[_BadCmd], charsmax(bad_cmd_info[_BadCmd]), command[1]);
-	}
-	else if(command[len - 1] == '*')
-	{
+	} else if(command[len - 1] == '*') {
 		bad_cmd_info[_BadCmdFlags] = _:BADCMD_PREFIX;
 		command[len - 1] = 0;
 		copy(bad_cmd_info[_BadCmd], charsmax(bad_cmd_info[_BadCmd]), command);
 	}
-	
-	// server_print("badcmd: %s, flags: %d", bad_cmd_info[_BadCmd], bad_cmd_info[_BadCmdFlags]);
 	
 	ArrayPushArray(g_aBadCmdList, bad_cmd_info);
 	g_iBadCmdListSize++;
@@ -328,13 +291,11 @@ public command_add_bad_cmd(id, level, cid)
 
 public command_add_punish(id, level, cid)
 {
-	if(~get_user_flags(id) & level)
-	{
+	if(~get_user_flags(id) & level) {
 		return PLUGIN_HANDLED;
 	}
 	
-	if(read_argc() != 3)
-	{
+	if(read_argc() != 3) {
 		return PLUGIN_HANDLED;
 	}
 	
@@ -349,8 +310,7 @@ public command_add_punish(id, level, cid)
 }
 public command_add_slowhack_answer(id, level, cid)
 {
-	if(~get_user_flags(id) & level)
-	{
+	if(~get_user_flags(id) & level) {
 		return PLUGIN_HANDLED;
 	}
 	
@@ -365,8 +325,7 @@ public command_add_slowhack_answer(id, level, cid)
 #if defined COMMAND_LOGGER
 public command_add_cmd_log(id, level, cid)
 {
-	if(~get_user_flags(id) & level)
-	{
+	if(~get_user_flags(id) & level) {
 		return PLUGIN_HANDLED;
 	}
 	
@@ -384,14 +343,12 @@ public client_putinserver(id)
 	
 	is_player_steam[id] = is_user_steam(id);
 	
-	if(g_iCmdListSize)
-	{
+	if(g_iCmdListSize) {
 		client_answer_check[id] = 0;
 		set_task(INPUT_DELAY + random_float(0.5, 1.5), "init_cmd_check", id + TASK_CMD_CHECK);
 	}
 	
-	if(g_iCvarListSize)
-	{
+	if(g_iCvarListSize) {
 		set_task(INPUT_DELAY + random_float(1.5, 3.5), "init_cvar_check", id + TASK_CVAR_CHECK);
 	}
 	
@@ -422,61 +379,48 @@ public check_first_cmd(id)
 	// client without answer
 	id -= TASK_FIRST_CMD;
 	
-	if(++client_answer_check[id] >= FIRST_CMD_RECHECKS)
-	{
+	if(++client_answer_check[id] >= FIRST_CMD_RECHECKS) {
 		punishment(id, PUNISH_BAD_CLIENT);
-	}
-	else
-	{
+	} else {
 		init_cmd_check(id + TASK_CMD_CHECK);
 	}
 }
 public client_command(id)
 {
 	new cmd[64]; read_argv(0, cmd, charsmax(cmd));
-	
-	if(current_cmd_state[id] >= 0 && equal(cmd, current_cmd[id]))
-	{
+
+	if(current_cmd_state[id] >= 0 && equal(cmd, current_cmd[id])) {
 		client_answered[id] = true;
 		return PLUGIN_HANDLED;
 	}
 	
-	if(g_iSlowhackAnswerSize && !client_answered[id] && TrieKeyExists(g_tSlowhackAnswer, cmd))
-	{
+	if(g_iSlowhackAnswerSize && !client_answered[id] && TrieKeyExists(g_tSlowhackAnswer, cmd)) {
 		// slowhack answer
 		client_answered[id] = true;
 		return PLUGIN_HANDLED;
 	}
 	
-	if(equal(rnd_str[id], cmd))
-	{
-		if(first_check[id])
-		{
+	if(equal(rnd_str[id], cmd)) {
+		if(first_check[id]) {
 			first_check[id] = false;
 			remove_task(id + TASK_FIRST_CMD);
 		}
 		// send next cmd
-		if(client_answered[id])
-		{
+		if(client_answered[id]) {
 			client_answered[id] = false;
 			
-			if(++current_cmd_state[id] >= g_iCmdListSize)
-			{
+			if(++current_cmd_state[id] >= g_iCmdListSize) {
 				set_task(RECHECK_DELAY + random_float(0.0, 30.0), "init_cmd_check", id + TASK_CMD_CHECK);
 				return PLUGIN_HANDLED;
 			}
 			// add delay if too match cmds
 			// 50-100 cmds for one cycle
-			if(current_cmd_state[id] && !(current_cmd_state[id] % MAX_CMDS_FOR_LOOP))
-			{
+			if(current_cmd_state[id] && !(current_cmd_state[id] % MAX_CMDS_FOR_LOOP)) {
 				set_task(LOOP_DELAY, "send_next_cmd", id);
 				return PLUGIN_HANDLED;
 			}
-		}
-		else
-		{
-			if(++client_cmd_warnings[id] >= MAX_CMD_WARNINGS)
-			{
+		} else {
+			if(++client_cmd_warnings[id] >= MAX_CMD_WARNINGS) {
 				punishment(id, PUNISH_WRONG_CMD);
 				return PLUGIN_HANDLED;
 			}
@@ -485,21 +429,18 @@ public client_command(id)
 		return PLUGIN_HANDLED;
 	}
 	
-	if(g_iBadCmdListSize)
-	{
+	if(g_iBadCmdListSize) {
 		new bad_cmd_info[BadCmdStruct];
 		new result;
 		
 		new cmd_len = strlen(cmd), bad_cmd_len;
 		
-		for(new i; i < g_iBadCmdListSize; i++)
-		{
+		for(new i; i < g_iBadCmdListSize; i++) {
 			ArrayGetArray(g_aBadCmdList, i, bad_cmd_info);
 			
 			result = containi(cmd, bad_cmd_info[_BadCmd]);
 			
-			if(result == -1)
-			{
+			if(result == -1) {
 				continue;
 			}
 			
@@ -509,20 +450,15 @@ public client_command(id)
 			// log_amx("[ACC] found bad cmd: %s, pattern: %s. STEAM: %s", cmd, bad_cmd_info[_BadCmd], player_authid[id]);
 			// punishment(id, PUNISH_BAD_CMD);
 			
-			if(!result && cmd_len > bad_cmd_len && bad_cmd_info[_BadCmdFlags] & BADCMD_PREFIX)
-			{
+			if(!result && cmd_len > bad_cmd_len && bad_cmd_info[_BadCmdFlags] & BADCMD_PREFIX) {
 				log_amx("[ACC] found prefix bad cmd: ^"%s^", pattern: ^"%s^". STEAM: %s", cmd, bad_cmd_info[_BadCmd], player_authid[id]);
 				punishment(id, PUNISH_BAD_CMD);
 				return PLUGIN_HANDLED;
-			}
-			else if(cmd_len - result == bad_cmd_len && cmd_len > bad_cmd_len  && bad_cmd_info[_BadCmdFlags] & BADCMD_SUFFIX)
-			{
+			} else if(cmd_len - result == bad_cmd_len && cmd_len > bad_cmd_len  && bad_cmd_info[_BadCmdFlags] & BADCMD_SUFFIX) {
 				log_amx("[ACC] found suffix bad cmd: ^"%s^", pattern: ^"%s^". STEAM: %s", cmd, bad_cmd_info[_BadCmd], player_authid[id]);
 				punishment(id, PUNISH_BAD_CMD);
 				return PLUGIN_HANDLED;
-			}
-			else if(bad_cmd_info[_BadCmdFlags] & BADCMD_ANY)
-			{
+			} else if(bad_cmd_info[_BadCmdFlags] & BADCMD_ANY) {
 				log_amx("[ACC] found bad cmd: ^"%s^", pattern: ^"%s^". STEAM: %s", cmd, bad_cmd_info[_BadCmd], player_authid[id]);
 				punishment(id, PUNISH_BAD_CMD);
 				return PLUGIN_HANDLED;
@@ -531,8 +467,7 @@ public client_command(id)
 	}
 	
 	#if defined COMMAND_LOGGER
-	if(!TrieKeyExists(g_tCmdLog, cmd))
-	{
+	if(!TrieKeyExists(g_tCmdLog, cmd)) {
 		add_new_cmd(id, cmd);
 	}
 	#endif // COMMAND_LOGGER
@@ -574,15 +509,9 @@ public cvar_answer(id)
 {
 	id -= TASK_CVAR_ANSWER;
 	
-	// punish for protector?
-	// recheck last cvar?
-	
-	if(++client_cvar_warnings[id] >= CVAR_ANSWER_RECHECKS)
-	{
+	if(++client_cvar_warnings[id] >= CVAR_ANSWER_RECHECKS) {
 		punishment(id, PUNISH_BLOCK_CVAR_ANSWER);
-	}
-	else
-	{
+	} else {
 		send_next_cvar(id);
 	}
 }
@@ -593,61 +522,54 @@ public cvar_callback(id, cvar[], value[], params[])
 	
 	new CvarFlags:flags = CvarFlags:params[0];
 	
-	if(flags & (CVAR_EXIST|CVAR_NOT_EXIST))
-	{
+	if(flags & (CVAR_EXIST|CVAR_NOT_EXIST)) {
 		new eq = equal(value, "Bad CVAR request");
-		if(!eq && flags & CVAR_EXIST)
-		{
+		if(!eq && flags & CVAR_EXIST) {
 			// punish for exist cvar
 			log_amx("[ACC] found bad cvar: %s. STEAM: %s", cvar, player_authid[id]);
 			punishment(id, PUNISH_WRONG_CVAR);
 			return PLUGIN_HANDLED;
 		}
-		if(eq && flags & CVAR_NOT_EXIST)
-		{
+		if(eq && flags & CVAR_NOT_EXIST) {
 			// punish for not exist cvar
 			log_amx("[ACC] where is your cvar: %s. STEAM: %s", cvar, player_authid[id]);
 			punishment(id, PUNISH_WRONG_CVAR);
 			return PLUGIN_HANDLED;
 		}
 	}
-	
+
+	if(current_cvar_state[id] >= ArraySize(g_aCvarList)) {
+		log_amx("[ACC] Undefined behavior. Cvar: %s, value: %s, flags: %d", cvar, value, flags);
+		return PLUGIN_HANDLED;
+	}
+
 	new cvar_info[CvarStruct]; ArrayGetArray(g_aCvarList, current_cvar_state[id], cvar_info);
 	
-	if(flags & (CVAR_EQUAL|CVAR_NOT_EQUAL))
-	{
-		if((equali(value, cvar_info[_CvarValue]) || str_to_float(value) == str_to_float(cvar_info[_CvarValue]))
-			&& flags & CVAR_EQUAL)
-		{
+	if(flags & (CVAR_EQUAL|CVAR_NOT_EQUAL)) {
+		if((equali(value, cvar_info[_CvarValue]) || str_to_float(value) == str_to_float(cvar_info[_CvarValue])) && flags & CVAR_EQUAL) {
 			log_amx("[ACC] found equal cvar value: %s %s == %s. STEAM: %s", cvar, value, cvar_info[_CvarValue], player_authid[id]);
 			punishment(id, PUNISH_WRONG_CVAR);
 			return PLUGIN_HANDLED;
-		}
-		else if(flags & CVAR_NOT_EQUAL)
-		{
+		} else if(flags & CVAR_NOT_EQUAL) {
 			log_amx("[ACC] found not equal cvar value: %s %s != %s. STEAM: %s", cvar, value, cvar_info[_CvarValue], player_authid[id]);
 			punishment(id, PUNISH_WRONG_CVAR);
 			return PLUGIN_HANDLED;
 		}
-	
 	}
 	
-	if(flags & CVAR_ABOVE && str_to_float(value) > cvar_info[_CvarValueAbove])
-	{
+	if(flags & CVAR_ABOVE && str_to_float(value) > cvar_info[_CvarValueAbove]) {
 		log_amx("[ACC] found cvar value: %s %s > %.1f. STEAM: %s", cvar, value, cvar_info[_CvarValueAbove], player_authid[id]);
 		punishment(id, PUNISH_WRONG_CVAR);
 		return PLUGIN_HANDLED;
 	}
 	
-	if(flags & CVAR_BELOW && str_to_float(value) < cvar_info[_CvarValueBelow])
-	{
+	if(flags & CVAR_BELOW && str_to_float(value) < cvar_info[_CvarValueBelow]) {
 		log_amx("[ACC] found cvar value: %s %s < %.1f. STEAM: %s", cvar, value, cvar_info[_CvarValueBelow], player_authid[id]);
 		punishment(id, PUNISH_WRONG_CVAR);
 		return PLUGIN_HANDLED;
 	}
 	
-	if(++current_cvar_state[id] >= g_iCvarListSize)
-	{
+	if(++current_cvar_state[id] >= g_iCvarListSize) {
 		set_task(RECHECK_DELAY, "init_cvar_check", id + TASK_CVAR_CHECK);
 		return PLUGIN_HANDLED;
 	}
@@ -673,10 +595,8 @@ punishment(id, PunishType:type)
 	// ban, kick, etc...
 	new punish_index, reason[32];
 	
-	switch(type)
-	{
-		case PUNISH_BAD_CLIENT:
-		{
+	switch(type) {
+		case PUNISH_BAD_CLIENT: {
 			// bad client, protector
 			log_amx("[ACC] found bad client or protector. STEAMID: %s", player_authid[id]);
 			
@@ -686,8 +606,7 @@ punishment(id, PunishType:type)
 			
 			return;
 		}
-		case PUNISH_BLOCK_CVAR_ANSWER:
-		{
+		case PUNISH_BLOCK_CVAR_ANSWER: {
 			new cvar_info[CvarStruct]; ArrayGetArray(g_aCvarList, current_cvar_state[id], cvar_info);
 			log_amx("[ACC] cvar without answer: %s. STEAM: %s", cvar_info[_Cvar], player_authid[id]);
 		
@@ -697,41 +616,35 @@ punishment(id, PunishType:type)
 			
 			return;
 		}
-		case PUNISH_WRONG_CMD:
-		{
+		case PUNISH_WRONG_CMD: {
 			log_amx("[ACC] found wrong cmd. STEAMID: %s, cmd: ^"%s^".", player_authid[id], current_cmd[id]);
 			
 			new cmd_info[CommandStruct]; ArrayGetArray(g_aCmdList, current_cmd_state[id], cmd_info);
 			punish_index = get_punish_index(cmd_info[_CmdPunishLevel]);
 			
-			if(punish_index == -1)
-			{
+			if(punish_index == INVALID_INDEX) {
 				log_amx("[ACC] Can't find ^"%d^" punish level for ^"%s^".", cmd_info[_CmdPunishLevel], cmd_info[_Cmd]);
 				return;
 			}
 			
 			copy(reason, charsmax(reason), cmd_info[_Cmd]);
 		}
-		case PUNISH_WRONG_CVAR:
-		{
+		case PUNISH_WRONG_CVAR: {
 			new cvar_info[CvarStruct]; ArrayGetArray(g_aCvarList, current_cvar_state[id], cvar_info);
 			punish_index = get_punish_index(cvar_info[_CvarPunishLevel]);
 			
-			if(punish_index == -1)
-			{
+			if(punish_index == INVALID_INDEX) {
 				log_amx("[ACC] Can't find ^"%d^" punish level for ^"%s^".", cvar_info[_CvarPunishLevel], cvar_info[_Cvar]);
 				return;
 			}
 			
 			copy(reason, charsmax(reason), cvar_info[_Cvar]);
 		}
-		case PUNISH_BAD_CMD:
-		{
+		case PUNISH_BAD_CMD: {
 			new bad_cmd_info[BadCmdStruct]; ArrayGetArray(g_aBadCmdList, current_bad_cmd[id], bad_cmd_info);
 			punish_index = get_punish_index(bad_cmd_info[_BadCmdPunishLevel]);
 			
-			if(punish_index == -1)
-			{
+			if(punish_index == INVALID_INDEX) {
 				log_amx("[ACC] Can't find ^"%d^" punish level for ^"%s^".", bad_cmd_info[_BadCmdPunishLevel], bad_cmd_info[_BadCmd]);
 				return;
 			}
@@ -750,10 +663,8 @@ punishment(id, PunishType:type)
 }
 generate_string(str[], len)
 {
-	for(new i; i < len; i++)
-	{
-		switch(random_num(0, 1))
-		{
+	for(new i; i < len; i++) {
+		switch(random(2)) {
 			case 0: str[i] = random_num('A', 'Z');
 			case 1: str[i] = random_num('a', 'z');
 		}
@@ -763,31 +674,28 @@ generate_string(str[], len)
 get_punish_index(level)
 {
 	new size = ArraySize(g_aPunishList);
-	for(new i, punish_info[PunishStruct]; i < size; i++)
-	{
+	for(new i, punish_info[PunishStruct]; i < size; i++) {
 		ArrayGetArray(g_aPunishList, i, punish_info);
-		if(level == punish_info[_PunishLevel])
-		{
+		if(level == punish_info[_PunishLevel]) {
 			return i;
 		}
 	}
-	return -1;
+	return INVALID_INDEX;
 }
 
 stock send_director_cmd(id , text[])
 {
-      message_begin( MSG_ONE, SVC_DIRECTOR, _, id );
-      write_byte( strlen(text) + 2 );
-      write_byte( 10 );
-      write_string( text );
-      message_end();
+	message_begin( MSG_ONE, SVC_DIRECTOR, _, id );
+	write_byte( strlen(text) + 2 );
+	write_byte( 10 );
+	write_string( text );
+	message_end();
 }
 
 stock bool:is_user_steam(id)
 {
 	static dp_pointer;
-	if(dp_pointer || (dp_pointer = get_cvar_pointer("dp_r_id_provider")))
-	{
+	if(dp_pointer || (dp_pointer = get_cvar_pointer("dp_r_id_provider"))) {
 		server_cmd("dp_clientinfo %d", id); server_exec();
 		return (get_pcvar_num(dp_pointer) == 2) ? true : false;
 	}
