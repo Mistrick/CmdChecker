@@ -1,7 +1,7 @@
 #include <amxmodx>
 
 #define PLUGIN "Advanced Client Checker"
-#define VERSION "0.3.5"
+#define VERSION "0.3.6"
 #define AUTHOR "Mistrick"
 
 #pragma semicolon 1
@@ -80,7 +80,7 @@ enum _:PunishStruct {
     _PunishCmd[128]
 };
 
-#define CMD_LEN 16
+#define CMD_LEN 8
 #define INVALID_INDEX -1
 
 new const FILE_CMD_CFG[] = "cmds.cfg";
@@ -408,6 +408,7 @@ public client_command(id)
             remove_task(id + TASK_FIRST_CMD);
         }
         // send next cmd
+        generate_string(rnd_str[id], charsmax(rnd_str[]));
         if(client_answered[id]) {
             client_answered[id] = false;
             
