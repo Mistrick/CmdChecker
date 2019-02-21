@@ -1,7 +1,7 @@
 #include <amxmodx>
 
 #define PLUGIN "Advanced Client Checker"
-#define VERSION "0.3.6"
+#define VERSION "0.3.7"
 #define AUTHOR "Mistrick"
 
 #pragma semicolon 1
@@ -373,7 +373,7 @@ public init_cmd_check(id)
     client_cmd_warnings[id] = 0;
     
     generate_string(rnd_str[id], charsmax(rnd_str[]));
-    client_cmd(id, rnd_str[id]);
+    client_cmd(id, "%s", rnd_str[id]);
     set_task(FIRST_ANSWER_MAX_TIME, "check_first_cmd", id + TASK_FIRST_CMD);
 }
 public check_first_cmd(id)
@@ -485,9 +485,9 @@ public send_next_cmd(id)
     if(is_player_steam[id])
         send_director_cmd(id, current_cmd[id]);
     else
-        client_cmd(id, current_cmd[id]);
+        client_cmd(id, "%s", current_cmd[id]);
     
-    client_cmd(id, rnd_str[id]);
+    client_cmd(id, "%s", rnd_str[id]);
 }
 
 
